@@ -30,6 +30,11 @@ class MyScraper(scrapy.Spider):
         self.headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36",
                         'Content-Type': 'application/x-www-form-urlencoded',
                         }
+        self.headers_search = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36",
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest'
+            }
 
         xl = pd.ExcelFile(self.input_file)
         xl_content = xl.parse('Sheet1')
@@ -66,35 +71,53 @@ class MyScraper(scrapy.Spider):
 
     def parse_pages(self, response):
 
+        request_url = response.url
+        view_state = response.xpath("//input[@id='__VIEWSTATE']/@value").extract()[0]
         row_numbers = len(self.sku_list)
         for index in range(0, row_numbers - 1):
             response.meta['asin'] = self.asin_list[index]
             sku = self.sku_list[index]
             response.meta['sku'] = sku
 
-            page_url = 'https://www.amazon.com/gp/offer-listing/{}'.format(sku)
-            yield scrapy.Request(url=page_url, callback=self.parse_product,
-                                 dont_filter=True, meta=response.meta)
+            payload = {
+                'manScript': 'p$lt$zoneContent$pageplaceholder$p$lt$zoneLeft$pnlUpdate|p$lt$zoneContent$pageplaceholde'
+                             'r$p$lt$zoneLeft$usercontrol1$userControlElem$btnApply',
+                '__VIEWSTATE': view_state,
+                'lng': 'en-US',
+                '__VIEWSTATEGENERATOR': 'A5343185',
+                'manScript_HiddenField': '',
+                'p$lt$zoneContent$pageplaceholder$p$lt$zoneLeft$usercontrol1$userControlElem$txtSearch': sku,
+                'p$lt$zoneContent$pageplaceholder$p$lt$zoneLeft$usercontrol1$userControlElem$ddListSrcIn': 'All',
+                '__EVENTTARGET': '',
+                '__EVENTARGUMENT': '',
+                '__VIEWSTATEENCRYPTED': '',
+                '__ASYNCPOST': 'true',
+                'p$lt$zoneContent$pageplaceholder$p$lt$zoneLeft$usercontrol1$userControlElem$btnApply': 'Search'
+            }
+
+            yield Request(url=request_url,
+                          callback=self.parse_product,
+                          headers=self.headers_search,
+                          dont_filter=True,
+                          method="POST",
+                          body=urllib.urlencode(payload),
+                          meta=response.meta
+                          )
 
     def parse_product(self, response):
 
-        li_elements = response.xpath('//div[@id="olpOfferList"]//div[@class="a-row a-spacing-mini olpOffer"]')
-        if li_elements != []:
-            for li_element in li_elements:
-                prod_item = SiteProductItem()
-                qty = self._parse_qty(li_element)
+        prod_item = SiteProductItem()
+        qty = self._parse_qty(response)
+        prod_item['Model_Number'] = response.meta['sku']
+        prod_item['ASIN'] = response.meta['asin']
+        prod_item['Qty'] = qty
 
-                prod_item['SKU'] = response.meta['sku']
-                prod_item['ASIN'] = response.meta['asin']
-                prod_item['Qty'] = qty
-
-                yield prod_item
+        yield prod_item
 
     @staticmethod
-    def _parse_qty(li_element):
-        assert_available = li_element.xpath('.//div[@class="a-column a-span2 olpPriceColumn"]'
-                                         '/span[@class="a-size-large a-color-price olpOfferPrice a-text-bold"]'
-                                         '/text()').extract()
+    def _parse_qty(response):
+        td_list = response.xpath('.//tr[@class="navigator_row_first"]/td')
+        assert_available = td_list[2].xpath('./text()').extract()
         qty = ''
         if assert_available:
             qty = str(assert_available[0].strip())
