@@ -66,7 +66,7 @@ class MyScraper(scrapy.Spider):
                       headers=self.headers,
                       dont_filter=True,
                       method="POST",
-                      body=urllib.urlencode(payload)
+                      body=urllib.parse.urlencode(payload)
                       )
 
     def parse_pages(self, response):
@@ -100,7 +100,7 @@ class MyScraper(scrapy.Spider):
                           headers=self.headers_search,
                           dont_filter=True,
                           method="POST",
-                          body=urllib.urlencode(payload),
+                          body=urllib.parse.urlencode(payload),
                           meta=response.meta
                           )
 
