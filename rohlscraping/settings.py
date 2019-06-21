@@ -20,9 +20,9 @@ NEWSPIDER_MODULE = 'rohlscraping.spiders'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
-# DOWNLOADER_MIDDLEWARES = {'scrapy_crawlera.CrawleraMiddleware': 300}
-# CRAWLERA_ENABLED = True
-# CRAWLERA_APIKEY = '5a60fee884ad4a548ffe8cbfeea8d56d'
+DOWNLOADER_MIDDLEWARES = {'scrapy_crawlera.CrawleraMiddleware': 300}
+CRAWLERA_ENABLED = True
+CRAWLERA_APIKEY = '********************************'
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 #CONCURRENT_REQUESTS = 32
